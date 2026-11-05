@@ -30,3 +30,10 @@ FROM courses
                     ON courses.course_id = assignments.course_id
 WHERE assignments.completed = FALSE
 GROUP BY courses.course_id, courses.course_name;
+
+
+-- UPDATE: Mark an assignment as completed
+
+UPDATE assignments
+SET completed = TRUE
+WHERE assignment_id = 1;
