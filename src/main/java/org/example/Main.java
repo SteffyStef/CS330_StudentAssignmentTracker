@@ -36,7 +36,22 @@ public class Main {
 
             System.out.print("Choose an option: ");
 
+
+            if (!scanner.hasNextInt()) {
+                System.out.println("Invalid input. Please enter a number.");
+                scanner.nextLine();
+                continue;
+            }
+
             int choice = scanner.nextInt();
+
+
+            if (choice < 1 || choice > 6) {
+                System.out.println("Invalid option. Please choose 1 through 6.");
+                continue;
+            }
+
+
 
             if (choice == 1) {
 
@@ -98,9 +113,22 @@ public class Main {
         else if (choice == 2) {
 
             System.out.print("Enter assignment ID: ");
-            int assignmentId = scanner.nextInt();
 
-            AssignmentManager.markCompleted(assignmentId);
+                if (!scanner.hasNextInt()) {
+                    System.out.println("Invalid assignment ID. Please enter a number.");
+                    scanner.nextLine();
+                    continue;
+                }
+
+                int assignmentId = scanner.nextInt();
+
+                if (assignmentId <= 0) {
+                    System.out.println("Assignment ID must be greater than zero.");
+                    continue;
+                }
+
+
+                AssignmentManager.markCompleted(assignmentId);
 
             System.out.println("Returning to program...");
         }
@@ -109,8 +137,21 @@ public class Main {
             else if (choice == 3) {
 
                 System.out.print("Enter course ID: ");
+
+                if (!scanner.hasNextInt()) {
+                    System.out.println("Invalid course ID. Please enter a number.");
+                    scanner.nextLine();
+                    continue;
+                }
+
                 int courseId = scanner.nextInt();
                 scanner.nextLine();
+
+                if (courseId <= 0) {
+                    System.out.println("Course ID must be greater than zero.");
+                    continue;
+                }
+
 
                 System.out.print("Enter assignment title: ");
                 String title = scanner.nextLine();
@@ -118,7 +159,16 @@ public class Main {
                 System.out.print("Enter due date (YYYY-MM-DD): ");
                 String dateInput = scanner.nextLine();
 
-                LocalDate dueDate = LocalDate.parse(dateInput);
+
+                LocalDate dueDate;
+
+                try {
+                    dueDate = LocalDate.parse(dateInput);
+                } catch (java.time.format.DateTimeParseException e) {
+                    System.out.println("Invalid date. Please use YYYY-MM-DD.");
+                    continue;
+                }
+
 
                 AssignmentManager.addAssignment(courseId, title, dueDate);
             }
@@ -177,9 +227,23 @@ public class Main {
 
             else if (choice == 5) {
 
+
                 System.out.print("Enter assignment ID to delete: ");
+
+                if (!scanner.hasNextInt()) {
+                    System.out.println("Invalid assignment ID. Please enter a number.");
+                    scanner.nextLine();
+                    continue;
+                }
+
                 int assignmentId = scanner.nextInt();
                 scanner.nextLine();
+
+                if (assignmentId <= 0) {
+                    System.out.println("Assignment ID must be greater than zero.");
+                    continue;
+                }
+
 
                 System.out.print("Are you sure you want to delete this assignment? (yes/no): ");
                 String confirmation = scanner.nextLine();
