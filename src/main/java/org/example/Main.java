@@ -24,11 +24,14 @@ public class Main {
             System.out.println("--------------------------");
 
 
+
             System.out.println("1. View all assignments");
             System.out.println("2. Mark assignment completed");
             System.out.println("3. Add new assignment");
             System.out.println("4. View pending assignments");
-            System.out.println("5. Exit");
+            System.out.println("5. Delete assignment");
+            System.out.println("6. Exit");
+
 
 
             System.out.print("Choose an option: ");
@@ -173,6 +176,23 @@ public class Main {
 
 
             else if (choice == 5) {
+
+                System.out.print("Enter assignment ID to delete: ");
+                int assignmentId = scanner.nextInt();
+                scanner.nextLine();
+
+                System.out.print("Are you sure you want to delete this assignment? (yes/no): ");
+                String confirmation = scanner.nextLine();
+
+                if (confirmation.equalsIgnoreCase("yes")) {
+                    AssignmentManager.deleteAssignment(assignmentId);
+                } else {
+                    System.out.println("Deletion cancelled.");
+                }
+            }
+
+
+            else if (choice == 6) {
                 System.out.println("Goodbye!");
                 break;
             }

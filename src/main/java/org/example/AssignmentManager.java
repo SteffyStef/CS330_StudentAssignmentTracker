@@ -65,5 +65,32 @@ public class AssignmentManager {
         }
     }
 
+    public static void deleteAssignment(int assignmentId) {
+
+        String sql = """
+            DELETE FROM assignments
+            WHERE assignment_id = ?
+            """;
+
+        try (Connection connection = DatabaseConnection.getConnection();
+             PreparedStatement statement =
+                     connection.prepareStatement(sql)) {
+
+            statement.setInt(1, assignmentId);
+
+            int rowsDeleted = statement.executeUpdate();
+
+            if (rowsDeleted > 0) {
+                System.out.println("Assignment deleted successfully.");
+            } else {
+                System.out.println("Assignment ID not found.");
+            }
+
+        } catch (SQLException e) {
+            System.out.println("Database error: " + e.getMessage());
+        }
+    }
+
+
 }
 
