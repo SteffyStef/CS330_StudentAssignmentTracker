@@ -50,3 +50,23 @@ FROM courses
                    ON courses.course_id = assignments.course_id
 GROUP BY courses.course_id, courses.course_name
 ORDER BY courses.course_name;
+
+
+-- View all assignments, newest ID first
+SELECT *
+FROM assignments
+ORDER BY assignment_id DESC;
+
+-- INSERT: Add a new assignment to course 1
+-- Example only: running this creates a new record
+
+INSERT INTO assignments
+(course_id, title, due_date, completed)
+VALUES
+    (1, 'Practice SQL INSERT', '2026-12-18', FALSE);
+
+-- DELETE: Remove an assignment by its ID
+-- Example only: do not execute unless you intend to delete the record
+
+DELETE FROM assignments
+WHERE assignment_id = 999;

@@ -17,8 +17,18 @@ import java.sql.Statement;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import javafx.scene.control.Button;
+import javafx.scene.control.TextField;
+import javafx.scene.control.ComboBox;
+import javafx.scene.control.DatePicker;
 
 public class AssignmentDashboard extends Application {
+    private Label totalAssignments;
+    private Label completedAssignments;
+    private Label pendingAssignments;
+    private Label totalCourses;
+    private VBox courseReport;
+    private ObservableList<Assignment> assignmentData;
 
     @Override
     public void start(Stage primaryStage) {
@@ -38,7 +48,7 @@ public class AssignmentDashboard extends Application {
         layout.getChildren().add(title);
 
 
-        Label totalAssignments = new Label("TOTAL ASSIGNMENTS: --");
+        totalAssignments = new Label("TOTAL ASSIGNMENTS: --");
 
         String sql = "SELECT COUNT(*) AS total FROM assignments";
 
@@ -70,7 +80,7 @@ public class AssignmentDashboard extends Application {
         layout.getChildren().add(totalAssignments);
 
 
-        Label completedAssignments = new Label("COMPLETED: --");
+        completedAssignments = new Label("COMPLETED: --");
 
         String completedSql =
                 "SELECT COUNT(*) AS total FROM assignments WHERE completed = TRUE";
@@ -90,7 +100,7 @@ public class AssignmentDashboard extends Application {
         }
 
 
-        Label pendingAssignments = new Label("PENDING: --");
+        pendingAssignments = new Label("PENDING: --");
 
         String pendingSql =
                 "SELECT COUNT(*) AS total FROM assignments WHERE completed = FALSE";
@@ -110,7 +120,7 @@ public class AssignmentDashboard extends Application {
         }
 
 
-        Label totalCourses = new Label("TOTAL COURSES: --");
+        totalCourses = new Label("TOTAL COURSES: --");
 
         String coursesSql = "SELECT COUNT(*) AS total FROM courses";
 
@@ -169,7 +179,7 @@ public class AssignmentDashboard extends Application {
         layout.getChildren().add(courseReportTitle);
 
 
-        VBox courseReport = new VBox(10);
+        courseReport = new VBox(10);
         courseReport.setAlignment(Pos.CENTER);
 
         courseReport.setStyle(
@@ -183,42 +193,10 @@ public class AssignmentDashboard extends Application {
         courseReport.setMinWidth(400);
 
 
-        String reportSql = """
-        SELECT courses.course_name,
-               COUNT(assignments.assignment_id) AS total_assignments
-        FROM courses
-        LEFT JOIN assignments
-        ON courses.course_id = assignments.course_id
-        GROUP BY courses.course_id, courses.course_name
-        ORDER BY courses.course_name
-        """;
 
-        try (Connection connection = DatabaseConnection.getConnection();
-             Statement statement = connection.createStatement();
-             ResultSet results = statement.executeQuery(reportSql)) {
-
-            while (results.next()) {
-                String courseName = results.getString("course_name");
-                int count = results.getInt("total_assignments");
-
-                Label courseLabel = new Label(
-                        courseName + " — " + count + " assignments"
-                );
-
-                courseLabel.setStyle(
-                        "-fx-font-size: 18px;" +
-                                "-fx-text-fill: #374151;"
-                );
-
-                courseReport.getChildren().add(courseLabel);
-            }
-
-        } catch (Exception e) {
-            System.out.println("Error loading course report: "
-                    + e.getMessage());
-        }
 
         layout.getChildren().add(courseReport);
+        loadCourseReport();
 
         Label assignmentsTitle = new Label("All Assignments");
 
@@ -302,8 +280,138 @@ public class AssignmentDashboard extends Application {
         );
 
 
-        ObservableList<Assignment> assignmentData =
-                FXCollections.observableArrayList();
+        assignmentData = FXCollections.observableArrayList();
+
+
+        loadAssignments();
+        assignmentsTable.setItems(assignmentData);
+
+
+        layout.getChildren().addAll(
+                assignmentsTitle,
+                assignmentsTable
+        );
+
+
+        Button addAssignmentButton = new Button("+ Add Assignment");
+
+        addAssignmentButton.setStyle(
+                "-fx-background-color: #2563EB;" +
+                        "-fx-text-fill: white;" +
+                        "-fx-font-size: 15px;" +
+                        "-fx-font-weight: bold;" +
+                        "-fx-padding: 10px 20px;" +
+                        "-fx-background-radius: 8px;"
+        );
+
+        layout.getChildren().add(addAssignmentButton);
+
+        VBox assignmentForm = new VBox(10);
+        assignmentForm.setAlignment(Pos.CENTER);
+        assignmentForm.setVisible(false);
+        assignmentForm.setManaged(false);
+
+        Label formTitle = new Label("New Assignment");
+        formTitle.setStyle(
+                "-fx-font-size: 20px;" +
+                        "-fx-font-weight: bold;"
+        );
+
+        TextField assignmentTitleField = new TextField();
+        assignmentTitleField.setPromptText("Enter assignment title");
+        assignmentTitleField.setMaxWidth(350);
+
+        ComboBox<String> courseComboBox = new ComboBox<>();
+
+        courseComboBox.setPromptText("Select a course");
+        courseComboBox.setMaxWidth(350);
+
+        courseComboBox.getItems().add("CS330 Databases");
+
+        DatePicker dueDatePicker = new DatePicker();
+
+        dueDatePicker.setPromptText("Select due date");
+        dueDatePicker.setMaxWidth(350);
+
+
+
+        Button saveAssignmentButton = new Button("Save Assignment");
+
+        saveAssignmentButton.setStyle(
+                "-fx-background-color: #16A34A;" +
+                        "-fx-text-fill: white;" +
+                        "-fx-font-size: 14px;" +
+                        "-fx-font-weight: bold;" +
+                        "-fx-padding: 10px 20px;" +
+                        "-fx-background-radius: 8px;"
+        );
+
+
+
+        assignmentForm.getChildren().addAll(
+                formTitle,
+                assignmentTitleField,
+                courseComboBox,
+                dueDatePicker,
+                saveAssignmentButton
+        );
+
+
+
+
+        layout.getChildren().add(assignmentForm);
+
+        addAssignmentButton.setOnAction(event -> {
+            assignmentForm.setVisible(true);
+            assignmentForm.setManaged(true);
+        });
+
+
+        saveAssignmentButton.setOnAction(event -> {
+            String assignmentTitle = assignmentTitleField.getText().trim();
+            String selectedCourse = courseComboBox.getValue();
+            java.time.LocalDate dueDate = dueDatePicker.getValue();
+
+            if (assignmentTitle.isEmpty() || selectedCourse == null || dueDate == null) {
+                new javafx.scene.control.Alert(
+                        javafx.scene.control.Alert.AlertType.WARNING,
+                        "Please enter a title, select a course, and choose a due date."
+                ).showAndWait();
+                return;
+            }
+
+            int courseId = 1; // Temporary: CS330 Databases
+
+            AssignmentManager.addAssignment(courseId, assignmentTitle, dueDate);
+            loadAssignments();
+            refreshStatistics();
+            loadCourseReport();
+        });
+
+
+
+
+
+
+        ScrollPane scrollPane = new ScrollPane(layout);
+        scrollPane.setFitToWidth(true);
+
+        layout.setStyle("-fx-padding: 30px;");
+
+        Scene scene = new Scene(scrollPane, 1200, 600);
+
+
+
+        primaryStage.setTitle("Student Assignment Dashboard");
+        primaryStage.setScene(scene);
+        primaryStage.show();
+    }
+
+    public static void main(String[] args) {
+        launch(args);
+    }
+    private void loadAssignments() {
+        assignmentData.clear();
 
         String assignmentsSql = """
         SELECT assignments.assignment_id,
@@ -338,36 +446,118 @@ public class AssignmentDashboard extends Application {
                     + e.getMessage());
         }
 
-        assignmentsTable.setItems(assignmentData);
 
+    }
+    private void refreshStatistics() {
+        String sql = "SELECT COUNT(*) AS total FROM assignments";
 
-        layout.getChildren().addAll(
-                assignmentsTitle,
-                assignmentsTable
-        );
+        try (Connection connection = DatabaseConnection.getConnection();
+             Statement statement = connection.createStatement();
+             ResultSet results = statement.executeQuery(sql)) {
 
+            if (results.next()) {
+                int total = results.getInt("total");
+                totalAssignments.setText("TOTAL ASSIGNMENTS: " + total);
+            }
 
+        } catch (Exception e) {
+            System.out.println("Error refreshing statistics: " + e.getMessage());
+        }
+        String completedSql = """
+        SELECT COUNT(*) AS total
+        FROM assignments
+        WHERE completed = TRUE
+        """;
 
+        try (Connection connection = DatabaseConnection.getConnection();
+             Statement statement = connection.createStatement();
+             ResultSet results = statement.executeQuery(completedSql)) {
 
+            if (results.next()) {
+                int completed = results.getInt("total");
+                completedAssignments.setText("COMPLETED: " + completed);
+            }
 
+        } catch (Exception e) {
+            System.out.println("Error refreshing completed count: "
+                    + e.getMessage());
+        }
+        String pendingSql = """
+        SELECT COUNT(*) AS total
+        FROM assignments
+        WHERE completed = FALSE
+        """;
 
+        try (Connection connection = DatabaseConnection.getConnection();
+             Statement statement = connection.createStatement();
+             ResultSet results = statement.executeQuery(pendingSql)) {
 
+            if (results.next()) {
+                int pending = results.getInt("total");
+                pendingAssignments.setText("PENDING: " + pending);
+            }
 
-        ScrollPane scrollPane = new ScrollPane(layout);
-        scrollPane.setFitToWidth(true);
+        } catch (Exception e) {
+            System.out.println("Error refreshing pending count: "
+                    + e.getMessage());
+        }
+        String coursesSql = """
+        SELECT COUNT(*) AS total
+        FROM courses
+        """;
 
-        layout.setStyle("-fx-padding: 30px;");
+        try (Connection connection = DatabaseConnection.getConnection();
+             Statement statement = connection.createStatement();
+             ResultSet results = statement.executeQuery(coursesSql)) {
 
-        Scene scene = new Scene(scrollPane, 1200, 600);
+            if (results.next()) {
+                int courses = results.getInt("total");
+                totalCourses.setText("TOTAL COURSES: " + courses);
+            }
 
-
-
-        primaryStage.setTitle("Student Assignment Dashboard");
-        primaryStage.setScene(scene);
-        primaryStage.show();
+        } catch (Exception e) {
+            System.out.println("Error refreshing courses count: "
+                    + e.getMessage());
+        }
     }
 
-    public static void main(String[] args) {
-        launch(args);
-    }
+    private void loadCourseReport() {
+        courseReport.getChildren().clear();
+
+        String reportSql = """
+        
+                SELECT courses.course_name,
+               COUNT(assignments.assignment_id) AS total_assignments
+        FROM courses
+        LEFT JOIN assignments
+        ON courses.course_id = assignments.course_id
+        GROUP BY courses.course_id, courses.course_name
+        ORDER BY courses.course_name
+        """;
+
+        try (Connection connection = DatabaseConnection.getConnection();
+             Statement statement = connection.createStatement();
+             ResultSet results = statement.executeQuery(reportSql)) {
+
+        while (results.next()) {
+            String courseName = results.getString("course_name");
+            int count = results.getInt("total_assignments");
+
+            Label courseLabel = new Label(
+                    courseName + " — " + count + " assignments"
+            );
+
+            courseLabel.setStyle(
+                    "-fx-font-size: 18px;" +
+                            "-fx-text-fill: #374151;"
+            );
+
+            courseReport.getChildren().add(courseLabel);
+        }
+
+        } catch (Exception e) {
+            System.out.println("Error loading course report: "
+                    + e.getMessage());
+        }
+        }
 }
