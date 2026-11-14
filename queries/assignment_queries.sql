@@ -37,3 +37,16 @@ GROUP BY courses.course_id, courses.course_name;
 UPDATE assignments
 SET completed = TRUE
 WHERE assignment_id = 1;
+
+
+-- Count assignments for each course
+-- Demonstrates LEFT JOIN, GROUP BY, and COUNT
+
+SELECT
+    courses.course_name,
+    COUNT(assignments.assignment_id) AS total_assignments
+FROM courses
+         LEFT JOIN assignments
+                   ON courses.course_id = assignments.course_id
+GROUP BY courses.course_id, courses.course_name
+ORDER BY courses.course_name;

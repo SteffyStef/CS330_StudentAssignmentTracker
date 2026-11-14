@@ -152,6 +152,70 @@ public class AssignmentDashboard extends Application {
         layout.getChildren().add(cardRow);
 
 
+        Label courseReportTitle = new Label("Assignments by Course");
+
+        courseReportTitle.setStyle(
+                "-fx-font-size: 22px;" +
+                        "-fx-font-weight: bold;" +
+                        "-fx-text-fill: #1E40AF;"
+        );
+
+        layout.getChildren().add(courseReportTitle);
+
+
+        VBox courseReport = new VBox(10);
+        courseReport.setAlignment(Pos.CENTER);
+
+        courseReport.setStyle(
+                "-fx-background-color: white;" +
+                        "-fx-padding: 25px;" +
+                        "-fx-border-color: #D1D5DB;" +
+                        "-fx-border-radius: 8px;" +
+                        "-fx-background-radius: 8px;"
+        );
+
+        courseReport.setMinWidth(400);
+
+
+        String reportSql = """
+        SELECT courses.course_name,
+               COUNT(assignments.assignment_id) AS total_assignments
+        FROM courses
+        LEFT JOIN assignments
+        ON courses.course_id = assignments.course_id
+        GROUP BY courses.course_id, courses.course_name
+        ORDER BY courses.course_name
+        """;
+
+        try (Connection connection = DatabaseConnection.getConnection();
+             Statement statement = connection.createStatement();
+             ResultSet results = statement.executeQuery(reportSql)) {
+
+            while (results.next()) {
+                String courseName = results.getString("course_name");
+                int count = results.getInt("total_assignments");
+
+                Label courseLabel = new Label(
+                        courseName + " — " + count + " assignments"
+                );
+
+                courseLabel.setStyle(
+                        "-fx-font-size: 18px;" +
+                                "-fx-text-fill: #374151;"
+                );
+
+                courseReport.getChildren().add(courseLabel);
+            }
+
+        } catch (Exception e) {
+            System.out.println("Error loading course report: "
+                    + e.getMessage());
+        }
+
+        layout.getChildren().add(courseReport);
+
+
+
 
 
 
