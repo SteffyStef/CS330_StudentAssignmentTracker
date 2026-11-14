@@ -346,14 +346,31 @@ public class AssignmentDashboard extends Application {
                         "-fx-background-radius: 8px;"
         );
 
+        Button cancelAssignmentButton = new Button("Cancel");
 
+        cancelAssignmentButton.setStyle(
+                "-fx-background-color: #6B7280;" +
+                        "-fx-text-fill: white;" +
+                        "-fx-font-size: 14px;" +
+                        "-fx-font-weight: bold;" +
+                        "-fx-padding: 10px 20px;" +
+                        "-fx-background-radius: 8px;"
+        );
+
+        HBox buttonRow = new HBox(10);
+        buttonRow.setAlignment(Pos.CENTER);
+
+        buttonRow.getChildren().addAll(
+                saveAssignmentButton,
+                cancelAssignmentButton
+        );
 
         assignmentForm.getChildren().addAll(
                 formTitle,
                 assignmentTitleField,
                 courseComboBox,
                 dueDatePicker,
-                saveAssignmentButton
+                buttonRow
         );
 
 
@@ -364,6 +381,15 @@ public class AssignmentDashboard extends Application {
         addAssignmentButton.setOnAction(event -> {
             assignmentForm.setVisible(true);
             assignmentForm.setManaged(true);
+        });
+
+        cancelAssignmentButton.setOnAction(event -> {
+            assignmentTitleField.clear();
+            courseComboBox.setValue(null);
+            dueDatePicker.setValue(null);
+
+            assignmentForm.setVisible(false);
+            assignmentForm.setManaged(false);
         });
 
 
@@ -386,6 +412,13 @@ public class AssignmentDashboard extends Application {
             loadAssignments();
             refreshStatistics();
             loadCourseReport();
+
+            assignmentTitleField.clear();
+            courseComboBox.setValue(null);
+            dueDatePicker.setValue(null);
+
+            assignmentForm.setVisible(false);
+            assignmentForm.setManaged(false);
         });
 
 
