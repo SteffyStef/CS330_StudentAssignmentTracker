@@ -4,6 +4,9 @@ package org.example;
 import javafx.application.Application;
 import javafx.scene.Scene;
 import javafx.scene.control.Label;
+import javafx.scene.control.TableView;
+import javafx.scene.control.TableColumn;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.layout.VBox;
 import javafx.geometry.Pos;
 import javafx.stage.Stage;
@@ -11,6 +14,9 @@ import javafx.scene.layout.HBox;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.Statement;
+import javafx.scene.control.cell.PropertyValueFactory;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 
 public class AssignmentDashboard extends Application {
 
@@ -214,12 +220,146 @@ public class AssignmentDashboard extends Application {
 
         layout.getChildren().add(courseReport);
 
+        Label assignmentsTitle = new Label("All Assignments");
+
+        assignmentsTitle.setStyle(
+                "-fx-font-size: 22px;" +
+                        "-fx-font-weight: bold;" +
+                        "-fx-text-fill: #1E40AF;"
+        );
+
+
+        TableView<Assignment> assignmentsTable = new TableView<>();
+
+        TableColumn<Assignment, String> assignmentColumn =
+                new TableColumn<>("Assignment");
+
+        assignmentColumn.setCellValueFactory(
+                new PropertyValueFactory<>("title")
+        );
+
+        TableColumn<Assignment, Integer> idColumn =
+                new TableColumn<>("ID");
+        idColumn.setCellValueFactory(
+                new PropertyValueFactory<>("id")
+        );
+
+        TableColumn<Assignment, String> courseColumn =
+                new TableColumn<>("Course");
+        courseColumn.setCellValueFactory(
+                new PropertyValueFactory<>("course")
+        );
+
+        TableColumn<Assignment, String> dueDateColumn =
+                new TableColumn<>("Due Date");
+        dueDateColumn.setCellValueFactory(
+                new PropertyValueFactory<>("dueDate")
+        );
+
+        TableColumn<Assignment, Boolean> completedColumn =
+                new TableColumn<>("Completed");
+        completedColumn.setCellValueFactory(
+                new PropertyValueFactory<>("completed")
+        );
+
+        completedColumn.setCellFactory(column -> new javafx.scene.control.TableCell<Assignment, Boolean>() {
+            @Override
+            protected void updateItem(Boolean completed, boolean empty) {
+                super.updateItem(completed, empty);
+
+
+                if (empty || completed == null) {
+                    setText(null);
+                    setStyle("");
+                } else {
+                    setText(completed ? "Completed" : "Pending");
+
+                    if (completed) {
+                        setStyle("-fx-text-fill: green; -fx-font-weight: bold;");
+                    } else {
+                        setStyle("-fx-text-fill: red; -fx-font-weight: bold;");
+                    }
+                }
+
+            }
+        });
+
+
+
+
+        assignmentsTable.getColumns().addAll(
+                idColumn,
+                courseColumn,
+                assignmentColumn,
+                dueDateColumn,
+                completedColumn
+        );
+
+        assignmentsTable.setPrefHeight(200);
+
+        assignmentsTable.setColumnResizePolicy(
+                TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN
+        );
+
+
+        ObservableList<Assignment> assignmentData =
+                FXCollections.observableArrayList();
+
+        String assignmentsSql = """
+        SELECT assignments.assignment_id,
+               courses.course_name,
+               assignments.title,
+               assignments.due_date,
+               assignments.completed
+        FROM assignments
+        INNER JOIN courses
+        ON assignments.course_id = courses.course_id
+        ORDER BY assignments.assignment_id
+        """;
+
+        try (Connection connection = DatabaseConnection.getConnection();
+             Statement statement = connection.createStatement();
+             ResultSet results = statement.executeQuery(assignmentsSql)) {
+
+            while (results.next()) {
+                Assignment assignment = new Assignment(
+                        results.getInt("assignment_id"),
+                        results.getString("course_name"),
+                        results.getString("title"),
+                        results.getString("due_date"),
+                        results.getBoolean("completed")
+                );
+
+                assignmentData.add(assignment);
+            }
+
+        } catch (Exception e) {
+            System.out.println("Error loading assignments: "
+                    + e.getMessage());
+        }
+
+        assignmentsTable.setItems(assignmentData);
+
+
+        layout.getChildren().addAll(
+                assignmentsTitle,
+                assignmentsTable
+        );
 
 
 
 
 
-        Scene scene = new Scene(layout, 1200, 600);
+
+
+
+        ScrollPane scrollPane = new ScrollPane(layout);
+        scrollPane.setFitToWidth(true);
+
+        layout.setStyle("-fx-padding: 30px;");
+
+        Scene scene = new Scene(scrollPane, 1200, 600);
+
 
 
         primaryStage.setTitle("Student Assignment Dashboard");
