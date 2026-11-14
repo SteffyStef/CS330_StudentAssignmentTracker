@@ -32,11 +32,15 @@ WHERE assignments.completed = FALSE
 GROUP BY courses.course_id, courses.course_name;
 
 
+
 -- UPDATE: Mark an assignment as completed
+-- Example only: replace 999 with an existing assignment ID
+-- Running this query modifies the matching record
 
 UPDATE assignments
 SET completed = TRUE
-WHERE assignment_id = 1;
+WHERE assignment_id = 999;
+
 
 
 -- Count assignments for each course
