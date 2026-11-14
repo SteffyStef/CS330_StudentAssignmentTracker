@@ -291,7 +291,99 @@ public class AssignmentDashboard extends Application {
                 assignmentsTitle,
                 assignmentsTable
         );
+        Button markCompletedButton = new Button("✓ Mark Completed");
 
+        markCompletedButton.setStyle(
+                "-fx-background-color: #16A34A;" +
+                        "-fx-text-fill: white;" +
+                        "-fx-font-size: 14px;" +
+                        "-fx-font-weight: bold;" +
+                        "-fx-padding: 10px 20px;" +
+                        "-fx-background-radius: 8px;"
+        );
+
+        layout.getChildren().add(markCompletedButton);
+
+        Button deleteAssignmentButton = new Button("Delete Assignment");
+
+        deleteAssignmentButton.setStyle(
+                "-fx-background-color: #DC2626;" +
+                        "-fx-text-fill: white;" +
+                        "-fx-font-size: 14px;" +
+                        "-fx-font-weight: bold;" +
+                        "-fx-padding: 10px 20px;" +
+                        "-fx-background-radius: 8px;"
+        );
+
+        layout.getChildren().add(deleteAssignmentButton);
+        deleteAssignmentButton.setOnAction(event -> {
+            Assignment selectedAssignment =
+                    assignmentsTable.getSelectionModel().getSelectedItem();
+
+            if (selectedAssignment == null) {
+                new javafx.scene.control.Alert(
+                        javafx.scene.control.Alert.AlertType.WARNING,
+                        "Please select an assignment to delete."
+                ).showAndWait();
+                return;
+            }
+
+            javafx.scene.control.Alert confirmation =
+                    new javafx.scene.control.Alert(
+                            javafx.scene.control.Alert.AlertType.CONFIRMATION,
+                            "Are you sure you want to delete this assignment?",
+                            javafx.scene.control.ButtonType.YES,
+                            javafx.scene.control.ButtonType.NO
+                    );
+
+            confirmation.setTitle("Confirm Deletion");
+            confirmation.setHeaderText("Delete Assignment");
+
+            java.util.Optional<javafx.scene.control.ButtonType> result =
+                    confirmation.showAndWait();
+
+            if (result.isEmpty() ||
+                    result.get() != javafx.scene.control.ButtonType.YES) {
+                return;
+            }
+
+            int assignmentId = selectedAssignment.getId();
+
+            AssignmentManager.deleteAssignment(assignmentId);
+
+            loadAssignments();
+            refreshStatistics();
+            loadCourseReport();
+
+        });
+
+        markCompletedButton.setOnAction(event -> {
+            Assignment selectedAssignment =
+                    assignmentsTable.getSelectionModel().getSelectedItem();
+
+            if (selectedAssignment == null) {
+                new javafx.scene.control.Alert(
+                        javafx.scene.control.Alert.AlertType.WARNING,
+                        "Please select an assignment first."
+                ).showAndWait();
+                return;
+            }
+            if (selectedAssignment.isCompleted()) {
+                new javafx.scene.control.Alert(
+                        javafx.scene.control.Alert.AlertType.INFORMATION,
+                        "This assignment is already completed."
+                ).showAndWait();
+                return;
+            }
+
+            int assignmentId = selectedAssignment.getId();
+
+            AssignmentManager.markCompleted(assignmentId);
+
+            loadAssignments();
+            refreshStatistics();
+            loadCourseReport();
+        });
 
         Button addAssignmentButton = new Button("+ Add Assignment");
 
