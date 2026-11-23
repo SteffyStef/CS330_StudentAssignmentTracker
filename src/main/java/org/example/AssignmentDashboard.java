@@ -36,6 +36,7 @@ public class AssignmentDashboard extends Application {
     private VBox courseReport;
     private ObservableList<Assignment> assignmentData;
     private String currentFilter = "All Assignments";
+    private String currentCourseFilter = "All Courses";
     private String currentSort = "Assignment ID";
 
     @Override
@@ -229,7 +230,34 @@ public class AssignmentDashboard extends Application {
         });
         filterComboBox.setPrefWidth(200);
 
+        ComboBox<String> courseFilterComboBox = new ComboBox<>();
+
+        courseFilterComboBox.getItems().add("All Courses");
+        courseFilterComboBox.setValue("All Courses");
+        courseFilterComboBox.setPrefWidth(220);
+        courseFilterComboBox.setPromptText("Filter by Course");
+        courseFilterComboBox.setOnAction(event -> {
+            currentCourseFilter = courseFilterComboBox.getValue();
+            loadAssignments();
+        });
+        String courseFilterSql =
+                "SELECT course_name FROM courses ORDER BY course_name";
+
+        try (Connection connection = DatabaseConnection.getConnection();
+             Statement statement = connection.createStatement();
+             ResultSet results = statement.executeQuery(courseFilterSql)) {
+
+            while (results.next()) {
+                courseFilterComboBox.getItems().add(
+                        results.getString("course_name")
+                );
+            }
+
+        } catch (Exception e) {
+            System.out.println("Error loading course filter: " + e.getMessage());
+        }
         layout.getChildren().add(filterComboBox);
+        layout.getChildren().add(courseFilterComboBox);
         ComboBox<String> sortComboBox = new ComboBox<>();
 
         sortComboBox.getItems().addAll(
@@ -540,6 +568,81 @@ public class AssignmentDashboard extends Application {
         );
 
         layout.getChildren().add(addAssignmentButton);
+        Button addCourseButton = new Button("+ Add Course");
+
+        addCourseButton.setStyle(
+                "-fx-background-color: #7C3AED;" +
+                        "-fx-text-fill: white;" +
+                        "-fx-font-size: 15px;" +
+                        "-fx-font-weight: bold;" +
+                        "-fx-padding: 10px 20px;" +
+                        "-fx-background-radius: 8px;"
+        );
+
+        layout.getChildren().add(addCourseButton);
+
+        addCourseButton.setOnAction(event -> {
+            Dialog<ButtonType> courseDialog = new Dialog<>();
+
+            courseDialog.setTitle("Add New Course");
+            courseDialog.setHeaderText("Enter Course Information");
+
+            TextField courseNameField = new TextField();
+            courseNameField.setPromptText("Example: CS301 Computer Science");
+
+            VBox courseForm = new VBox(10);
+            courseForm.getChildren().addAll(
+                    new Label("Course Name:"),
+                    courseNameField
+            );
+
+            courseDialog.getDialogPane().setContent(courseForm);
+
+            courseDialog.getDialogPane().getButtonTypes().addAll(
+                    ButtonType.OK,
+                    ButtonType.CANCEL
+            );
+
+            courseDialog.showAndWait().ifPresent(result -> {
+                if (result == ButtonType.OK) {
+                    String courseName = courseNameField.getText().trim();
+
+                    if (courseName.isEmpty()) {
+                        new Alert(
+                                Alert.AlertType.WARNING,
+                                "Please enter a course name."
+                        ).showAndWait();
+                        return;
+                    }
+
+                    String insertCourseSql = "INSERT INTO courses (course_name) VALUES (?)";
+
+                    try (Connection connection = DatabaseConnection.getConnection();
+                         PreparedStatement statement =
+                                 connection.prepareStatement(insertCourseSql)) {
+
+                        statement.setString(1, courseName);
+                        int rowsAdded = statement.executeUpdate();
+
+                        if (rowsAdded > 0) {
+                            refreshStatistics();
+                            loadCourseReport();
+
+                            new Alert(
+                                    Alert.AlertType.INFORMATION,
+                                    "Course added successfully!"
+                            ).showAndWait();
+                        }
+
+                    } catch (Exception e) {
+                        new Alert(
+                                Alert.AlertType.ERROR,
+                                "Error adding course: " + e.getMessage()
+                        ).showAndWait();
+                    }
+                }
+            });
+        });
 
         VBox assignmentForm = new VBox(10);
         assignmentForm.setAlignment(Pos.CENTER);
@@ -561,7 +664,28 @@ public class AssignmentDashboard extends Application {
         courseComboBox.setPromptText("Select a course");
         courseComboBox.setMaxWidth(350);
 
-        courseComboBox.getItems().add("CS330 Databases");
+        Runnable refreshCourseDropdown = () -> {
+            courseComboBox.getItems().clear();
+
+            String coursesQuery =
+                    "SELECT course_name FROM courses ORDER BY course_name";
+
+            try (Connection connection = DatabaseConnection.getConnection();
+                 Statement statement = connection.createStatement();
+                 ResultSet results = statement.executeQuery(coursesQuery)) {
+
+                while (results.next()) {
+                    courseComboBox.getItems().add(
+                            results.getString("course_name")
+                    );
+                }
+
+            } catch (Exception e) {
+                System.out.println("Error loading courses: " + e.getMessage());
+            }
+        };
+
+        refreshCourseDropdown.run();
 
         DatePicker dueDatePicker = new DatePicker();
 
@@ -614,6 +738,8 @@ public class AssignmentDashboard extends Application {
         layout.getChildren().add(assignmentForm);
 
         addAssignmentButton.setOnAction(event -> {
+            refreshCourseDropdown.run();
+
             assignmentForm.setVisible(true);
             assignmentForm.setManaged(true);
         });
@@ -641,7 +767,38 @@ public class AssignmentDashboard extends Application {
                 return;
             }
 
-            int courseId = 1; // Temporary: CS330 Databases
+            int courseId = -1;
+
+            String courseSql =
+                    "SELECT course_id FROM courses WHERE course_name = ?";
+
+            try (Connection connection = DatabaseConnection.getConnection();
+                 PreparedStatement statement =
+                         connection.prepareStatement(courseSql)) {
+
+                statement.setString(1, selectedCourse);
+
+                try (ResultSet results = statement.executeQuery()) {
+                    if (results.next()) {
+                        courseId = results.getInt("course_id");
+                    }
+                }
+
+            } catch (Exception e) {
+                new Alert(
+                        Alert.AlertType.ERROR,
+                        "Error finding course: " + e.getMessage()
+                ).showAndWait();
+                return;
+            }
+
+            if (courseId == -1) {
+                new Alert(
+                        Alert.AlertType.ERROR,
+                        "Selected course was not found."
+                ).showAndWait();
+                return;
+            }
 
             AssignmentManager.addAssignment(courseId, assignmentTitle, dueDate);
             loadAssignments();
@@ -697,6 +854,15 @@ public class AssignmentDashboard extends Application {
         } else if (currentFilter.equals("Completed Only")) {
             assignmentsSql += " WHERE assignments.completed = TRUE";
         }
+        if (!currentCourseFilter.equals("All Courses")) {
+            if (assignmentsSql.contains(" WHERE ")) {
+                assignmentsSql += " AND ";
+            } else {
+                assignmentsSql += " WHERE ";
+            }
+
+            assignmentsSql += "courses.course_name = ?";
+        }
 
         if (currentSort.equals("Due Date (Earliest First)")) {
             assignmentsSql += " ORDER BY assignments.due_date ASC, assignments.assignment_id ASC";
@@ -707,21 +873,27 @@ public class AssignmentDashboard extends Application {
         }
 
         try (Connection connection = DatabaseConnection.getConnection();
-             Statement statement = connection.createStatement();
-             ResultSet results = statement.executeQuery(assignmentsSql)) {
+             PreparedStatement statement =
+                     connection.prepareStatement(assignmentsSql)) {
 
-            while (results.next()) {
-                Assignment assignment = new Assignment(
-                        results.getInt("assignment_id"),
-                        results.getString("course_name"),
-                        results.getString("title"),
-                        results.getString("due_date"),
-                        results.getBoolean("completed")
-                );
-
-                assignmentData.add(assignment);
+            if (!currentCourseFilter.equals("All Courses")) {
+                statement.setString(1, currentCourseFilter);
             }
 
+            try (ResultSet results = statement.executeQuery()) {
+
+                while (results.next()) {
+                    Assignment assignment = new Assignment(
+                            results.getInt("assignment_id"),
+                            results.getString("course_name"),
+                            results.getString("title"),
+                            results.getString("due_date"),
+                            results.getBoolean("completed")
+                    );
+
+                    assignmentData.add(assignment);
+                }
+            }
         } catch (Exception e) {
             System.out.println("Error loading assignments: "
                     + e.getMessage());

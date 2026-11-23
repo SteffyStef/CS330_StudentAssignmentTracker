@@ -167,3 +167,29 @@ Implemented and tested:
 The project is undergoing final documentation and
 submission review.
 
+
+### Multiple Course Support (week 10)
+- The application now supports multiple courses.
+- Assignments can be associated with specific courses.
+
+### New Features
+- Add new courses directly from the JavaFX dashboard.
+- Load course names dynamically from MySQL.
+- Assign new assignments to the correct course.
+- Filter assignments by course.
+- Combine course and completion-status filters.
+- Sort assignments by due date (ascending or descending).
+- Use PreparedStatement for parameterized SQL queries.
+
+### Database Relationships
+- One course can have many assignments.
+- Each assignment belongs to one course.
+- The assignments table uses course_id as a foreign key referencing courses.course_id.
+
+### Testing
+- Verified adding courses and assignments.
+- Verified editing, completing, and deleting assignments.
+- Verified filtering by course and completion status.
+- Verified sorting by due date.
+- Verified dashboard statistics and course reports.
+
