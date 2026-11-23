@@ -1,6 +1,7 @@
 
 package org.example;
 
+
 import javafx.application.Application;
 import javafx.scene.Scene;
 import javafx.scene.control.Label;
@@ -14,6 +15,7 @@ import javafx.scene.layout.HBox;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.Statement;
+import java.sql.PreparedStatement;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -21,6 +23,10 @@ import javafx.scene.control.Button;
 import javafx.scene.control.TextField;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.DatePicker;
+import javafx.scene.control.Alert;
+import javafx.scene.control.Dialog;
+import javafx.scene.control.ButtonType;
+import java.time.LocalDate;
 
 public class AssignmentDashboard extends Application {
     private Label totalAssignments;
@@ -29,6 +35,8 @@ public class AssignmentDashboard extends Application {
     private Label totalCourses;
     private VBox courseReport;
     private ObservableList<Assignment> assignmentData;
+    private String currentFilter = "All Assignments";
+    private String currentSort = "Assignment ID";
 
     @Override
     public void start(Stage primaryStage) {
@@ -206,7 +214,38 @@ public class AssignmentDashboard extends Application {
                         "-fx-text-fill: #1E40AF;"
         );
 
+        ComboBox<String> filterComboBox = new ComboBox<>();
 
+        filterComboBox.getItems().addAll(
+                "All Assignments",
+                "Pending Only",
+                "Completed Only"
+        );
+
+        filterComboBox.setValue("All Assignments");
+        filterComboBox.setOnAction(event -> {
+            currentFilter = filterComboBox.getValue();
+            loadAssignments();
+        });
+        filterComboBox.setPrefWidth(200);
+
+        layout.getChildren().add(filterComboBox);
+        ComboBox<String> sortComboBox = new ComboBox<>();
+
+        sortComboBox.getItems().addAll(
+                "Assignment ID",
+                "Due Date (Earliest First)",
+                "Due Date (Latest First)"
+        );
+
+        sortComboBox.setValue("Assignment ID");
+        sortComboBox.setOnAction(event -> {
+            currentSort = sortComboBox.getValue();
+            loadAssignments();
+        });
+        sortComboBox.setPrefWidth(220);
+
+        layout.getChildren().add(sortComboBox);
         TableView<Assignment> assignmentsTable = new TableView<>();
 
         TableColumn<Assignment, String> assignmentColumn =
@@ -385,6 +424,110 @@ public class AssignmentDashboard extends Application {
             loadCourseReport();
         });
 
+        Button editAssignmentButton = new Button("✎ Edit Assignment");
+
+        editAssignmentButton.setStyle(
+                "-fx-background-color: #F59E0B;" +
+                        "-fx-text-fill: white;" +
+                        "-fx-font-size: 14px;" +
+                        "-fx-font-weight: bold;" +
+                        "-fx-padding: 10px 20px;" +
+                        "-fx-background-radius: 8px;"
+        );
+
+        layout.getChildren().add(editAssignmentButton);
+        editAssignmentButton.setOnAction(event -> {
+            Assignment selectedAssignment =
+                    assignmentsTable.getSelectionModel().getSelectedItem();
+
+            if (selectedAssignment == null) {
+                Alert alert = new Alert(Alert.AlertType.WARNING);
+                alert.setTitle("No Assignment Selected");
+                alert.setHeaderText(null);
+                alert.setContentText("Please select an assignment to edit.");
+                alert.showAndWait();
+                return;
+            }
+            Dialog<ButtonType> editDialog = new Dialog<>();
+            editDialog.setTitle("Edit Assignment");
+            editDialog.setHeaderText("Update Assignment Details");
+
+            TextField editTitleField = new TextField(selectedAssignment.getTitle());
+
+            DatePicker editDueDatePicker = new DatePicker();
+
+            if (selectedAssignment.getDueDate() != null &&
+                    !selectedAssignment.getDueDate().isEmpty()) {
+                editDueDatePicker.setValue(
+                        LocalDate.parse(selectedAssignment.getDueDate())
+                );
+            }
+
+            VBox editForm = new VBox(10);
+            editForm.getChildren().addAll(
+                    new Label("Assignment Title:"),
+                    editTitleField,
+                    new Label("Due Date:"),
+                    editDueDatePicker
+            );
+
+            editDialog.getDialogPane().setContent(editForm);
+
+            editDialog.getDialogPane().getButtonTypes().addAll(
+                    ButtonType.OK,
+                    ButtonType.CANCEL
+            );
+
+            editDialog.showAndWait().ifPresent(result -> {
+                if (result == ButtonType.OK) {
+                    String newTitle = editTitleField.getText().trim();
+                    LocalDate newDueDate = editDueDatePicker.getValue();
+
+                    if (newTitle.isEmpty() || newDueDate == null) {
+                        new Alert(
+                                Alert.AlertType.WARNING,
+                                "Please enter a title and select a due date."
+                        ).showAndWait();
+                        return;
+                    }
+
+                    String updateSql = """
+                UPDATE assignments
+                SET title = ?, due_date = ?
+                WHERE assignment_id = ?
+                """;
+
+                    try (Connection connection = DatabaseConnection.getConnection();
+                         PreparedStatement statement =
+                                 connection.prepareStatement(updateSql)) {
+
+                        statement.setString(1, newTitle);
+                        statement.setDate(2, java.sql.Date.valueOf(newDueDate));
+                        statement.setInt(3, selectedAssignment.getId());
+
+                        int rowsUpdated = statement.executeUpdate();
+
+                        if (rowsUpdated > 0) {
+                            loadAssignments();
+                            refreshStatistics();
+                            loadCourseReport();
+
+                            new Alert(
+                                    Alert.AlertType.INFORMATION,
+                                    "Assignment updated successfully!"
+                            ).showAndWait();
+                        }
+
+                    } catch (Exception e) {
+                        new Alert(
+                                Alert.AlertType.ERROR,
+                                "Error updating assignment: " + e.getMessage()
+                        ).showAndWait();
+                    }
+                }
+            });
+        });
+
         Button addAssignmentButton = new Button("+ Add Assignment");
 
         addAssignmentButton.setStyle(
@@ -547,8 +690,21 @@ public class AssignmentDashboard extends Application {
         FROM assignments
         INNER JOIN courses
         ON assignments.course_id = courses.course_id
-        ORDER BY assignments.assignment_id
         """;
+
+        if (currentFilter.equals("Pending Only")) {
+            assignmentsSql += " WHERE assignments.completed = FALSE";
+        } else if (currentFilter.equals("Completed Only")) {
+            assignmentsSql += " WHERE assignments.completed = TRUE";
+        }
+
+        if (currentSort.equals("Due Date (Earliest First)")) {
+            assignmentsSql += " ORDER BY assignments.due_date ASC, assignments.assignment_id ASC";
+        } else if (currentSort.equals("Due Date (Latest First)")) {
+            assignmentsSql += " ORDER BY assignments.due_date DESC, assignments.assignment_id ASC";
+        } else {
+            assignmentsSql += " ORDER BY assignments.assignment_id ASC";
+        }
 
         try (Connection connection = DatabaseConnection.getConnection();
              Statement statement = connection.createStatement();
